@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, 2021, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -63,43 +63,65 @@
 	status = "disabled";
 };
 
-//#ifdef VENDOR_EDIT
-// Add for :NFC chip, extern XO ,dont need clk
-//qcom,nq-clkreq = <&pm660_gpios 4 0x00>;
-//wake up :gpio 103
-&qupv3_se4_i2c {
-	status = "ok";
-	nq@28 {
-		compatible = "nxp,pn544";
-		reg = <0x28>;
-		nxp,pn544-irq = <&pm660l_gpios 4 0x00>;
-		nxp,pn544-ven = <&pm660l_gpios 5 0x00>;
-		nxp,pn544-fw-dwnld = <&pm660l_gpios 3 0x00>;
-		nxp,pn544-ese-pwr = <&pm660l_gpios 8 0x00>;
-		qcom,nq-clkreq = <&pm660_gpios 4 0x00>;
-		interrupt-parent = <&pm660l_gpios>;
-		qcom,clk-src = "BBCLK3";
-		interrupts = <4 0>;
-		interrupt-names = "nfc_irq";
-		pinctrl-names = "nfc_default";
-		pinctrl-0 = <&nfc_clk_default>;
-		clocks = <&clock_rpmh RPMH_LN_BB_CLK3>;
-		clock-names = "ref_clk";
-	};
-};
-
 &qupv3_se0_spi {
-    status = "ok";
+	/* Novatek device tree node */
+     status = "ok";
+     #address-cells = <1>;
+     #size-cells = <0>;
+     touchscreen@0 {
+         status = "okay";
+         compatible = "oppo,tp_noflash";
+         reg = <0>;
+         chip-name = "OPPO_TP_NOFLASH";
+         spi-max-frequency = <9600000>;	//4800000,9600000,15000000,19200000
+         reset-gpio = <&tlmm 99 0x00>;
+         interrupt-parent = <&tlmm>;
+         interrupts = <125 0x01>;
+         irq-gpio = <&tlmm 125 0x2001>;
+         lcd-reset-gpio = <&tlmm 26 0x00>;
+         pinctrl-names = "default";
+         pinctrl-0 = <&ts_int_active &ts_reset_active>;
+         touchpanel,max-num-support = <10>;
+         touchpanel,tx-rx-num = <16 36>;
+         touchpanel,panel-coords = <1080 2340>;
+         touchpanel,display-coords = <1080 2340>;
+         incell_screen;
+         irq_need_dev_resume_ok;
+         fw_edge_limit_support;
+         black_gesture_support;
+         charger_pump_support;
+         headset_pump_support;
+         //spurious_fingerprint_support;
+         //lcd_trigger_fp_check;
+         esd_handle_support;
+         black_gesture_test_support;
+         game_switch_support;
+         noflash_support;
+         lcd_trigger_load_tp_fw_support;
+         smart_gesture_support;
+         pressure_report_support;
+         fw_update_app_support;
 
-    ese@0 {
-        compatible = "nxp,p61";
-        reg = <0>;
-        spi-max-frequency = <8000000>;
+        /*
+        *Virtual Key Config:
+        *1:touchpanel,button-type: <virtualkey_type  supportted_button-map>
+        *virtualkey_type:
+        *Type 1: using board_properties
+        *Type 2: using same IC (button zone&& touch zone are seprate)
+        *Type 3: using diffrent IC (button zone&& touch zone are seprate)
+        *Type 4: No need of virtual key process
+        *supportted_button-map:select|menu|home|back
+        *
+        *2:touchpanel,button-map
+        *type (X1,Y1)(X2,Y2)(X3,Y3)(Width_X,Hight_Y)--Only when button-type is 0
+        */
+
+        touchpanel,button-type = <4>;
     };
 };
-//else if
-//#endif /* VENDOR_EDIT */
 
+//#ifndef OPLUS_FEATURE_CHG_BASIC
+//#endif /* OPLUS_FEATURE_CHG_BASIC */
 &qupv3_se10_i2c {
 	status = "ok";
 };
@@ -177,7 +199,7 @@
 		reg = <0x10>;
 		ak4376,reset-gpio = <&tlmm 50 0x00>;
 		//audio-vdd-enable-gpio = <&tlmm 60 0x00>;
-		status = "disabled";
+		status = "okay";
 	};
 };
 /* #endif OPLUS_ARCH_EXTENDS */
@@ -185,7 +207,7 @@
 //#ifdef VENDOR_EDIT
 &qupv3_se9_i2c  {
     //Wanghao@BSP.group 2018-04-15 add for enable i2c_9
-    status = "okay";
+    status = "disabled";
     synaptics17081@20 {
         compatible = "synaptics-s3706";
         reg = <0x20>;
@@ -197,14 +219,14 @@
 
         /* Power Config */
         enable2v8_gpio = <&pm660_gpios 13 0x1>;
-        //vdd_2v8-supply = <&pm660l_l2>;
+        vdd_2v8-supply = <&pm660l_l2>;
         vcc_1v8-supply = <&pm660_l8>;
-        //vdd_2v8_volt = <2960000>;
+        vdd_2v8_volt = <2960000>;
 
         /* Other HW Resource */
         irq-gpio = <&tlmm 125 0x2008>;
-        reset-gpio = <&tlmm 99 0x1>; //use gpio 199 for evt
-
+        reset-gpio = <&tlmm 119 0x1>; //use gpio 199 for evt
+        reset_t0-gpio = <&tlmm 99 0x1>; //use gpio 99 for t0
         pinctrl-names = "default";
         pinctrl-0 = <&ts_int_active &ts_reset_active>;
 
@@ -293,13 +315,6 @@
 };
 
 &soc {
-	//#ifdef OPLUS_FEATURE_CONNFCSOFT
-	nfc_chipset {
-		compatible = "oplus-nfc-chipset";
-		chipset-19651-11 = "NQ330";
-		chipset-19651-34 = "NQ330";
-	};
-	//#endif /* OPLUS_FEATURE_CONNFCSOFT */
 	gpio_keys {
 		compatible = "gpio-keys";
 		label = "gpio-keys";
@@ -378,37 +393,32 @@
     oplus_fp_common {
         compatible = "oplus,fp_common"; //Manufacture, and Model
         oplus,fp_gpio_num = <1>; /* the gpio number of fingerprint id used */
-        oplus,fp_gpio_0 = <&tlmm 23 0x0>; // 0:silead, 1:goodix,empty:no id pin
-        pinctrl-names = "default";
-        pinctrl-0 = <&gpio_id2_default>;
-        goodix_optical {
-            oplus,fp-id = <1>; /* fp id mapping table */
-            vendor-chip = <11>; /* please refer to the struct fp_vendor_t in oppo_fp_commmon.n */
+        oplus,fp_gpio_0 = <&pm660_gpios 6 GPIO_ACTIVE_LOW>; // 0: silead,1:goodix,empty:no id pin
+        //pinctrl-names = "default";
+        //pinctrl-0 = <&gpio_id2_default>;
+        fpc_fingerprint {
+            oplus,fp-id = <0>; /* fp id mapping table */
+            vendor-chip = <6>; /* please refer to the struct fp_vendor_t in oppo_fp_commmon.n */
             eng-menu = "-1,-1"; /* represents SNR, inclination test item in engineer menu, and 0/1 means off/on */
-            chip-name = "G_OPTICAL_G3";  /* /proc/fp_id, will be displayed in engineer menu  */
+            chip-name = "F_1511";  /* /proc/fp_id, will be displayed in engineer menu  */
+        };
+        fpc_fingerprint_bak {
+            oplus,fp-id = <1>; /* fp id mapping table */
+            vendor-chip = <6>; /* please refer to the struct fp_vendor_t in oppo_fp_commmon.n */
+            eng-menu = "-1,-1"; /* represents SNR, inclination test item in engineer menu, and 0/1 means off/on */
+            chip-name = "F_1511";  /* /proc/fp_id, will be displayed in engineer menu  */
         };
     };
-    goodix_fp {
-        compatible = "goodix,goodix_fp";
-        vdd_flag = <1>;  /*19651 use vdd-gpio 1     no use0*/
-        power-mode = <2> ; /*please refer to the struct fp_power_mode_t in oppo_fp_commmon.n ,0: power mode not set, 1: ldo power, 2: gpio power, 3: auto power */
-        ldo5-supply = <&pm660l_l5>; // pm660l_l5 for goodix_fp
-        interrupt-parent = <&tlmm>;
-        interrupts = <121 0>;
-        goodix,gpio_irq = <&tlmm 121 0x1>;
-        goodix,gpio_reset = <&tlmm 80 0x0>;
-        goodix,goodix_pwr = <&tlmm 126 0x0>;
-        goodix,goodix_vdd = <&tlmm 122 0x0>;
+
+     fpc_fpc1020 {
+        compatible = "fpc,fpc1020"; //Manufacture, and Model
+        fpc,irq-gpio = <&tlmm 121 0x00>;
+        fpc,rst-gpio = <&tlmm 80  0x01>;
+        vdd_io-supply = <&pm660_l14>;  // 1.8V
         pinctrl-names = "default";
-        pinctrl-0 = <&gpio_goodix_irq_default>;
-        power-num = <1> ;
-        power_source_1 {
-            power-mode = <2>;
-            power-name = "goodix,goodix_pwr";
-            poweron-level = <1>;
-            delay-time = <0>;
-        };
-    };
+        pinctrl-0 = <&gpio_fpc_irq_default>;
+        pinctrl-1 = <&gpio_fpc_rst_default>;
+   };
    // #endif OPLUS_FEATURE_FINGERPRINT
 };
 
@@ -540,9 +550,15 @@
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
 	qcom,mdss-dsi-bl-min-level = <1>;
 	qcom,mdss-dsi-bl-max-level = <4095>;
-	qcom,platform-reset-gpio = <&tlmm 75 0>;
+	//#ifndef OPLUS_BUG_STABILITY
+	//caiwutang@RM.Display.LCD.Parame for no lcd
+	//qcom,platform-reset-gpio = <&tlmm 75 0>;
+	//qcom,platform-te-gpio = <&tlmm 10 0>;
+	//qcom,panel-mode-gpio = <&tlmm 76 0>;
+	//#else /* OPLUS_BUG_STABILITY */
+	qcom,platform-reset-gpio = <&tlmm 26 0>;
 	qcom,platform-te-gpio = <&tlmm 10 0>;
-	qcom,panel-mode-gpio = <&tlmm 76 0>;
+	//#endif/* OPLUS_BUG_STABILITY */
 	qcom,mdss-dsi-mode-sel-gpio-state = "single_port";
 };
 
@@ -552,7 +568,12 @@
 
 &pm660l_wled {
 	status = "okay";
-	qcom,led-strings-list = [01 02];
+	//#ifndef OPLUS_BUG_STABILITY
+	//caiwutang@RM.MM.Display.LCD.Stability 2018/11/24  set 3 sink
+	//qcom,led-strings-list = [01 02];
+	//#else
+	qcom,led-strings-list = [00 01 02];
+	//#endif
 };
 
 &mdss_mdp {
@@ -564,7 +585,6 @@
 		status = "disabled";
 	};
 };
-
 &qupv3_se10_i2c {
 	status = "okay";
 	pinctrl-names = "default", "sleep", "pulldown", "pullup";
@@ -572,11 +592,6 @@
 	pinctrl-3 = <&qupv3_se10_i2c_pullup>;
 //#endif //OPLUS_FEATURE_CHG_BASIC
 
-	tps6128xd-rf@75 {
-		status = "okay";
-		compatible = "oplus,tps6128xd-rf";
-		reg = <0x75>;
-	};
 	bq27541-battery@55 {
 		status = "okay";
 		compatible = "oplus,bq27541-battery";
@@ -584,21 +599,18 @@
 		qcom,modify-soc-smooth;
 	};
 
-	oplus_short-ic@58 {
-		status = "okay";
-		compatible = "oplus,oplus_short-ic";
-		reg = <0x58>;
-		qcom,modify-soc-smooth;
-	};
 
 	stm8s_fastcg@26{
 		status = "okay";
 		compatible = "oplus,stm8s-fastcg";
 		reg = <0x26>;
-		qcom,vooc-low-temp = <120>;
 		qcom,oplus_batt_4400mv;
-		qcom,vooc-fw-type = <8>;
 		qcom,vooc_fw_update_newmethod;
+		qcom,vooc-low-temp = <120>;
+		qcom,vooc-high-temp = <430>;
+		qcom,vooc-low-soc = <1>;
+		qcom,vooc-high-soc = <85>;
+		qcom,vooc-fw-type = <7>;
 
 		pinctrl-names = "switch1_act_switch2_act", "switch1_sleep_switch2_sleep",
 						"switch1_act_switch3_act", "switch1_sleep_switch3_sleep",
@@ -631,115 +643,6 @@
 		//qcom,vooc_mcu_id-gpio = <&tlmm 117 0x00>;
 	};
 
-	n76e_fastcg@52{
-		status = "okay";
-		compatible = "oplus,n76e-fastcg";
-		reg = <0x52 0>;
-		qcom,vooc-low-temp = <120>;
-		qcom,oplus_batt_4400mv;
-		qcom,vooc-fw-type = <2>;
-		qcom,vooc_fw_update_newmethod;
 
-		pinctrl-names = "switch1_act_switch2_act", "switch1_sleep_switch2_sleep",
-						"switch1_act_switch3_act", "switch1_sleep_switch3_sleep",
-						"switch1_act_switch2_sleep", "switch1_sleep_switch2_act",
-						"clock_active","clock_sleep",
-						"data_active","data_sleep",
-						"reset_active","reset_sleep";
-						//"vooc_mcu_id_default";
-		pinctrl-0 = <&charging_switch1_active>;
-		pinctrl-1 = <&charging_switch1_sleep>;
-		pinctrl-2 = <&charging_switch1_active>;
-		pinctrl-3 = <&charging_switch1_sleep>;
-		pinctrl-4 = <&charging_switch1_active>;
-		pinctrl-5 = <&charging_switch1_sleep>;
-		pinctrl-6 = <&charging_clock_active>;
-		pinctrl-7 = <&charging_clock_sleep>;
-		pinctrl-8 = <&charging_data_active>;
-		pinctrl-9 = <&charging_data_sleep>;
-		pinctrl-10 = <&charging_reset_active>;
-		pinctrl-11 = <&charging_reset_sleep>;
-		//pinctrl-12 = <&vooc_mcu_id_default>;
-
-		qcom,charging_switch1-gpio = <&tlmm 116 0x00>;
-		//qcom,charging_switch2-gpio = <&tlmm 113 0x00>;
-		//qcom,charging_switch3-gpio = <&tlmm 38 0x00>;
-
-		qcom,charging_reset-gpio = <&tlmm 91 0x00>;
-		qcom,charging_clock-gpio = <&tlmm 124 0x00>;
-		qcom,charging_data-gpio = <&tlmm 123 0x00>;
-		//qcom,vooc_mcu_id-gpio = <&tlmm 116 0x00>;
-	};
-
-	pic16f_fastcg@25{
-		status = "okay";
-		compatible = "oplus,pic16f-fastcg";
-		reg = <0x25>;
-
-		pinctrl-names = "switch1_act_switch2_act", "switch1_sleep_switch2_sleep",
-						"switch1_act_switch3_act", "switch1_sleep_switch3_sleep",
-						"switch1_act_switch2_sleep", "switch1_sleep_switch2_act",
-						"clock_active","clock_sleep",
-						"data_active","data_sleep",
-						"reset_active","reset_sleep";
-						//"vooc_mcu_id_default";
-		pinctrl-0 = <&charging_switch1_active>;
-		pinctrl-1 = <&charging_switch1_sleep >;
-		pinctrl-2 = <&charging_switch1_active>;
-		pinctrl-3 = <&charging_switch1_sleep >;
-		pinctrl-4 = <&charging_switch1_active>;
-		pinctrl-5 = <&charging_switch1_sleep>;
-		pinctrl-6 = <&charging_clock_active >;
-		pinctrl-7 = <&charging_clock_sleep >;
-		pinctrl-8 = <&charging_data_active >;
-		pinctrl-9 = <&charging_data_sleep >;
-		pinctrl-10 = <&charging_reset_active >;
-		pinctrl-11 = <&charging_reset_sleep >;
-		//pinctrl-12 = <&vooc_mcu_id_default>;
-
-		qcom,charging_switch1-gpio = <&tlmm 116 0x00>;
-		//qcom,charging_switch2-gpio = <&tlmm 113 0x00>;
-		//qcom,charging_switch3-gpio = <&tlmm 38 0x00>;
-
-		qcom,charging_reset-gpio = <&tlmm 91 0x00>;
-		qcom,charging_clock-gpio = <&tlmm 124 0x00>;
-		qcom,charging_data-gpio = <&tlmm 123 0x00>;
-		//qcom,vooc_mcu_id-gpio = <&tlmm 42 0x00>;
-	};
 };
 //#endif
-
-&mdss_dsi0 {
-	status = "disabled";
-};
-
-&mdss_dsi1 {
-	status = "disabled";
-};
-
-&mdss_dsi_phy0 {
-	status = "disabled";
-};
-
-&mdss_dsi_phy1 {
-	status = "disabled";
-};
-
-&dsi_dual_nt35597_truly_video_display {
-	/delete-property/ qcom,dsi-display-active;
-};
-
-&sde_dp {
-	qcom,display-type = "primary";
-	qcom,yuv-support;
-	qcom,max-pclk-frequency-khz = <675000>;
-};
-
-&sde_wb {
-	status = "disabled";
-};
-
-&mdss_mdp {
-	qcom,sde-drm-fb-splash-logo-enabled;
-	connectors = <&sde_rscc &sde_dp>;
-};
