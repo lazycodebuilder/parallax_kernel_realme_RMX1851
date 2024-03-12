@@ -129,7 +129,3 @@ AnyKernel3/
 out/
 build.sh
 regen.sh
-
-#KernelSU
-KernelSU
-drivers/kernelsu
