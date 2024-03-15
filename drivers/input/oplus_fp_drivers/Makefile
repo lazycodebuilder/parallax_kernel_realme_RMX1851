@@ -1,5 +1,8 @@
 obj-$(CONFIG_OPPO_FINGERPRINT) += oppo_fp_common/
 
+### Capacitive fingerprint sensor
+obj-$(CONFIG_OPPO_FINGERPRINT_FPC) += fpc/
+
 ### Optical fingerprint sensor
 ifneq ($(CONFIG_OPPO_FINGERPRINT_GOODIX)_$(CONFIG_OPPO_FINGERPRINT_GOODIX_OPTICAL), _)
 obj-y += goodix_optical_fp/

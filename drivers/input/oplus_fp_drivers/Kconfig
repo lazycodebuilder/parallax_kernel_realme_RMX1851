@@ -11,7 +11,9 @@ config OPPO_FINGERPRINT_QCOM
        tristate "Fingerprint base on QCOM"
 
 ### fingerprint sensor config
-
+config OPPO_FINGERPRINT_FPC
+       default n
+       tristate "Fingerprint base on fpc capacitive chip"
 config OPPO_FINGERPRINT_GOODIX_OPTICAL
        default n
        tristate "Fingerprint base on goodix optical chip"
