@@ -1,3 +1,4 @@
+dts-dirs += 18621
 dts-dirs += qcom
 
 subdir-y	:= $(dts-dirs)
