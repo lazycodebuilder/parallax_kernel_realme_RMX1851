@@ -207,7 +207,7 @@
 //#ifdef VENDOR_EDIT
 &qupv3_se9_i2c  {
     //Wanghao@BSP.group 2018-04-15 add for enable i2c_9
-    status = "okay";
+    status = "disabled";
     synaptics17081@20 {
         compatible = "synaptics-s3706";
         reg = <0x20>;
