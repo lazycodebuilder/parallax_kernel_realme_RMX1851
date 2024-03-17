@@ -28,11 +28,6 @@
 #include <linux/hrtimer.h>
 #endif
 
-#ifdef CONFIG_FB
-#include <linux/fb.h>
-#include <linux/notifier.h>
-#endif
-
 #ifdef CONFIG_DRM_MSM
 #include <linux/msm_drm_notify.h>
 #endif
@@ -47,7 +42,7 @@
 /*******Part0:LOG TAG Declear************************/
 #define TPD_PRINT_POINT_NUM 150
 #define TPD_DEVICE "touchpanel"
-#define TPD_INFO(a, arg...)  pr_info("[TP]"TPD_DEVICE ": " a, ##arg)
+#define TPD_INFO(a, arg...)  pr_debug("[TP]"TPD_DEVICE ": " a, ##arg)
 
 #define TPD_DEBUG(a, arg...) do {} while(0)
 #define TPD_DETAIL(a, arg...) do {} while(0)
@@ -66,8 +61,12 @@ static int pm_qos_state = 0;
 #define PM_QOS_TOUCH_WAKEUP_VALUE 400
 #endif
 
-uint8_t DouTap_enable = 0;				 // double tap
-uint8_t gesture_enable = 0;
+static int sigle_num = 0;
+static struct timeval tpstart, tpend;
+static int pointx[2] = {0, 0};
+static int pointy[2] = {0, 0};
+
+#define ABS(a, b) ((a - b > 0) ? a - b : b - a)
 
 /*******Part2:declear Area********************************/
 static void speedup_resume(struct work_struct *work);
@@ -80,8 +79,9 @@ void esd_handle_switch(struct esd_information *esd_info, bool flag);
 static irqreturn_t tp_irq_thread_fn(int irq, void *dev_id);
 #endif
 
-#if defined(CONFIG_FB) || defined(CONFIG_DRM_MSM)
-static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data);
+#if defined(CONFIG_DRM_MSM)
+static int msm_drm_notifier_callback(
+    struct notifier_block *self, unsigned long event, void *data);
 #endif
 
 static void tp_touch_release(struct touchpanel_data *ts);
@@ -407,11 +407,39 @@ static void tp_geture_info_transform(struct gesture_info *gesture, struct resolu
     gesture->Point_4th.y   = gesture->Point_4th.y   * resolution_info->LCD_HEIGHT / (resolution_info->max_y);
 }
 
+int sec_double_tap(struct gesture_info *gesture)
+{
+    uint32_t timeuse = 0;
+
+    if (sigle_num == 0) {
+        do_gettimeofday(&tpstart);
+        pointx[0] = gesture->Point_start.x;
+        pointy[0] = gesture->Point_start.y;
+        sigle_num++;
+        TPD_DEBUG("first enter double tap\n");
+    } else if (sigle_num == 1) {
+        do_gettimeofday(&tpend);
+        pointx[1] = gesture->Point_start.x;
+        pointy[1] = gesture->Point_start.y;
+        sigle_num = 0;
+        timeuse = 1000000 * (tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec;
+        TPD_DEBUG("timeuse = %d, distance[x] = %d, distance[y] = %d\n", timeuse, ABS(pointx[0], pointx[1]), ABS(pointy[0], pointy[1]));
+        if ((ABS(pointx[0], pointx[1]) < 150) && (ABS(pointy[0], pointy[1]) < 200) && (timeuse < 500000)) {
+            return 1;
+        } else {
+            TPD_DEBUG("not match double tap\n");
+            do_gettimeofday(&tpstart);
+            pointx[0] = gesture->Point_start.x;
+            pointy[0] = gesture->Point_start.y;
+            sigle_num = 1;
+        }
+    }
+    return 0;
+}
+
 static void tp_gesture_handle(struct touchpanel_data *ts)
 {
     struct gesture_info gesture_info_temp;
-    bool enabled = false;
-    int key = -1;
 
     if (!ts->ts_ops->get_gesture_info) {
         TPD_INFO("not support ts->ts_ops->get_gesture_info callback\n");
@@ -421,6 +449,13 @@ static void tp_gesture_handle(struct touchpanel_data *ts)
     memset(&gesture_info_temp, 0, sizeof(struct gesture_info));
     ts->ts_ops->get_gesture_info(ts->chip_data, &gesture_info_temp);
     tp_geture_info_transform(&gesture_info_temp, &ts->resolution_info);
+    if (ts->single_tap_support) {
+        if (gesture_info_temp.gesture_type == SingleTap) {
+            if (sec_double_tap(&gesture_info_temp) == 1) {
+                gesture_info_temp.gesture_type  = DouTap;
+            }
+        }
+    }
 
     TPD_INFO("detect %s gesture\n", gesture_info_temp.gesture_type == DouTap ? "double tap" :
              gesture_info_temp.gesture_type == UpVee ? "up vee" :
@@ -439,62 +474,6 @@ static void tp_gesture_handle(struct touchpanel_data *ts)
              gesture_info_temp.gesture_type == FingerprintUp ? "(fingerprintup)" :
              gesture_info_temp.gesture_type == SingleTap ? "single tap" :
              gesture_info_temp.gesture_type == Heart ? "heart" : "unknown");
-
-	switch (gesture_info_temp.gesture_type) {
-		case DouTap:
-			enabled = DouTap_enable;
-			key = KEY_DOUBLE_TAP;
-			break;
-		case UpVee:
-		        enabled = gesture_enable;
-			key = KEY_GESTURE_UP_ARROW;
-			break;
-		case DownVee:
-                        enabled = gesture_enable;
-			key = KEY_GESTURE_DOWN_ARROW;
-			break;
-		case LeftVee:
-                        enabled = gesture_enable;
-			key = KEY_GESTURE_LEFT_ARROW;
-			break;
-		case RightVee:
-                        enabled = gesture_enable;
-			key = KEY_GESTURE_RIGHT_ARROW;
-			break;
-		case Circle:
-                        enabled = gesture_enable;
-			key = KEY_GESTURE_CIRCLE;
-			break;
-		case DouSwip:
-                        enabled = gesture_enable ;
-			key = KEY_GESTURE_TWO_SWIPE;
-			break;
-		case Left2RightSwip:
-                        enabled = gesture_enable ;
-			key = KEY_GESTURE_SWIPE_LEFT;
-			break;
-		case Right2LeftSwip:
-                        enabled = gesture_enable ;
-			key = KEY_GESTURE_SWIPE_RIGHT;
-			break;
-		case Up2DownSwip:
-                        enabled = gesture_enable;
-			key = KEY_GESTURE_SWIPE_UP;
-			break;
-		case Down2UpSwip:
-                        enabled = gesture_enable;
-			key = KEY_GESTURE_SWIPE_DOWN;
-			break;
-		case Mgestrue:
-                        enabled = gesture_enable;
-			key = KEY_GESTURE_M;
-			break;
-		case Wgestrue:
-                        enabled = gesture_enable;
-			key = KEY_GESTURE_W;
-			break;
-	}
-
 #if GESTURE_COORD_GET
     if (ts->ts_ops->get_gesture_coord) {
         ts->ts_ops->get_gesture_coord(ts->chip_data, gesture_info_temp.gesture_type);
@@ -513,18 +492,23 @@ static void tp_gesture_handle(struct touchpanel_data *ts)
     }
 #endif // end of CONFIG_OPPO_TP_APK
 
-    if (gesture_info_temp.gesture_type != UnkownGesture && gesture_info_temp.gesture_type != FingerprintDown && gesture_info_temp.gesture_type != FingerprintUp) {
+    if (gesture_info_temp.gesture_type == DouTap && CHK_BIT(ts->gesture_enable_indep, (1 << gesture_info_temp.gesture_type))) {
+        memcpy(&ts->gesture, &gesture_info_temp, sizeof(struct gesture_info));
+        input_report_key(ts->input_dev, KEY_WAKEUP, 1);
+        input_sync(ts->input_dev);
+        input_report_key(ts->input_dev, KEY_WAKEUP, 0);
+        input_sync(ts->input_dev);
+    } else if (gesture_info_temp.gesture_type != UnkownGesture && gesture_info_temp.gesture_type != FingerprintDown && gesture_info_temp.gesture_type != FingerprintUp && CHK_BIT(ts->gesture_enable_indep, (1 << gesture_info_temp.gesture_type))) {
         memcpy(&ts->gesture, &gesture_info_temp, sizeof(struct gesture_info));
 #if GESTURE_RATE_MODE
         if(ts->geature_ignore)
             return;
 #endif
-	if (enabled) {
-            input_report_key(ts->input_dev, key, 1);
-            input_sync(ts->input_dev);
-            input_report_key(ts->input_dev, key, 0);
-            input_sync(ts->input_dev);
-        }
+        input_report_key(ts->input_dev, KEY_GESTURE_START + gesture_info_temp.gesture_type, 1);
+        input_sync(ts->input_dev);
+        input_report_key(ts->input_dev, KEY_GESTURE_START + gesture_info_temp.gesture_type, 0);
+        input_sync(ts->input_dev);
+
     } else if (gesture_info_temp.gesture_type == FingerprintDown) {
         ts->fp_info.touch_state = 1;
         if (ts->screenoff_fingerprint_info_support) {
@@ -1613,6 +1597,116 @@ void switch_headset_state(int headset_state)
 }
 EXPORT_SYMBOL(switch_headset_state);
 
+/*
+ *    gesture_enable = 0 : disable dt2w
+ *    gesture_enable = 1 : enable dt2w
+ */
+static ssize_t proc_gesture_control_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
+{
+    int value = 0;
+    char buf[4] = {0};
+    struct touchpanel_data *ts = PDE_DATA(file_inode(file));
+
+    if (count > 2)
+        return count;
+    if (!ts)
+        return count;
+
+    if (copy_from_user(buf, buffer, count)) {
+        TPD_INFO("%s: read proc input error.\n", __func__);
+        return count;
+    }
+    sscanf(buf, "%d", &value);
+    if (value > 3 || (ts->gesture_test_support && ts->gesture_test.flag))
+        return count;
+
+    mutex_lock(&ts->mutex);
+    if (value)
+        ts->gesture_enable_indep |= (1 << DouTap);
+    else
+        ts->gesture_enable_indep &= ~(1 << DouTap);
+
+    if (ts->ts_ops->set_gesture_state)
+        ts->ts_ops->set_gesture_state(ts->chip_data, ts->gesture_enable_indep);
+    mutex_unlock(&ts->mutex);
+
+    return count;
+}
+
+static ssize_t proc_gesture_control_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+{
+    int ret = 0;
+    int value = 0;
+    char page[PAGESIZE] = {0};
+    struct touchpanel_data *ts = PDE_DATA(file_inode(file));
+
+    if (!ts)
+        return 0;
+
+    value = !!(ts->gesture_enable_indep & (1 << DouTap));
+
+    TPD_DEBUG("double tap enable is: %d\n", value);
+    ret = snprintf(page, PAGESIZE - 1, "%d", value);
+    ret = simple_read_from_buffer(user_buf, count, ppos, page, strlen(page));
+
+    return ret;
+}
+
+/*
+ *    each bit cant enable or disable each gesture
+ *    bit0: 1 for enable bit gesture, 0 for disable bit gesture
+ *    bit1: 1 for enable bit gesture, 0 for disable bit gesture
+ *    bit2: 1 for enable bit gesture, 0 for disable bit gesture
+ */
+static ssize_t proc_gesture_control_indep_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
+{
+    int value = 0;
+    char buf[9] = {0};
+    struct touchpanel_data *ts = PDE_DATA(file_inode(file));
+
+    if (count > 8)
+        return count;
+    if (!ts)
+        return count;
+
+    if (copy_from_user(buf, buffer, count)) {
+        TPD_INFO("%s: read proc input error.\n", __func__);
+        return count;
+    }
+    sscanf(buf, "%d", &value);
+
+    TPD_INFO("%s: value is %x.\n", __func__, value);
+
+    mutex_lock(&ts->mutex);
+
+    ts->gesture_enable_indep = value;
+
+    if (ts->ts_ops->set_gesture_state) {
+        ts->ts_ops->set_gesture_state(ts->chip_data, value);
+    }
+    mutex_unlock(&ts->mutex);
+
+    return count;
+}
+
+static ssize_t proc_gesture_control_indep_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+{
+    int ret = 0;
+    char page[PAGESIZE] = {0};
+    struct touchpanel_data *ts = PDE_DATA(file_inode(file));
+
+    if (!ts)
+        return 0;
+    if (!ts->ts_ops)
+        return 0;
+
+    TPD_DEBUG("gesture gesture_enable_indep is: %x\n", ts->gesture_enable_indep);
+    ret = snprintf(page, PAGESIZE - 1, "%x\n", (unsigned int)ts->gesture_enable_indep);
+    ret = simple_read_from_buffer(user_buf, count, ppos, page, strlen(page));
+
+    return ret;
+}
+
 static ssize_t proc_coordinate_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
 {
     int ret = 0;
@@ -1632,6 +1726,20 @@ static ssize_t proc_coordinate_read(struct file *file, char __user *user_buf, si
 
     return ret;
 }
+
+static const struct file_operations proc_gesture_control_fops = {
+    .write = proc_gesture_control_write,
+    .read  = proc_gesture_control_read,
+    .open  = simple_open,
+    .owner = THIS_MODULE,
+};
+
+static const struct file_operations proc_gesture_control_indep_fops = {
+    .write = proc_gesture_control_indep_write,
+    .read  = proc_gesture_control_indep_read,
+    .open  = simple_open,
+    .owner = THIS_MODULE,
+};
 
 static const struct file_operations proc_coordinate_fops = {
     .read  = proc_coordinate_read,
@@ -4009,9 +4117,6 @@ static const struct file_operations proc_touch_apk_fops = {
 	    .owner = THIS_MODULE, \
 	};
 
-GESTURE_ATTR(double_tap, DouTap_enable);
-GESTURE_ATTR(gesture, gesture_enable);
-
 #define CREATE_PROC_NODE(PARENT, NAME, MODE) \
 	prEntry_tmp = proc_create(#NAME, MODE, PARENT, &NAME##_proc_fops); \
 	if (prEntry_tmp == NULL) { \
@@ -4094,13 +4199,22 @@ static int init_touchpanel_proc(struct touchpanel_data *ts)
 
     //proc files-step2-4:/proc/touchpanel/double_tap_enable (black gesture related interface)
     if (ts->black_gesture_support) {
-        CREATE_GESTURE_NODE(double_tap);
-        CREATE_GESTURE_NODE(gesture);
-
+        prEntry_tmp = proc_create_data("double_tap_enable", 0666, prEntry_tp, &proc_gesture_control_fops, ts);
+        if (prEntry_tmp == NULL) {
+            ret = -ENOMEM;
+            TPD_INFO("%s: Couldn't create proc entry, %d\n", __func__, __LINE__);
+        }
         prEntry_tmp = proc_create_data("coordinate", 0444, prEntry_tp, &proc_coordinate_fops, ts);
         if (prEntry_tmp == NULL) {
             ret = -ENOMEM;
             TPD_INFO("%s: Couldn't create proc entry, %d\n", __func__, __LINE__);
+        }
+        if (ts->black_gesture_indep_support) {
+            prEntry_tmp = proc_create_data("double_tap_enable_indep", 0666, prEntry_tp, &proc_gesture_control_indep_fops, ts);
+            if (prEntry_tmp == NULL) {
+                ret = -ENOMEM;
+                TPD_INFO("%s: Couldn't create proc entry, %d\n", __func__, __LINE__);
+            }
         }
     }
 
@@ -5560,7 +5674,7 @@ static int init_debug_info_proc(struct touchpanel_data *ts)
  */
 static int init_input_device(struct touchpanel_data *ts)
 {
-    int ret = 0;
+    int ret = 0, i = 0;
     struct kobject *vk_properties_kobj;
 
     TPD_INFO("%s is called\n", __func__);
@@ -5607,20 +5721,10 @@ static int init_input_device(struct touchpanel_data *ts)
 #ifdef CONFIG_OPPO_TP_APK
         set_bit(KEY_POWER, ts->input_dev->keybit);
 #endif //end of CONFIG_OPPO_TP_APK
-        set_bit(KEY_GESTURE_W, ts->input_dev->keybit);
-        set_bit(KEY_GESTURE_M, ts->input_dev->keybit);
-        set_bit(KEY_DOUBLE_TAP, ts->input_dev->keybit);
-        set_bit(KEY_GESTURE_CIRCLE, ts->input_dev->keybit);
-        set_bit(KEY_GESTURE_TWO_SWIPE, ts->input_dev->keybit);
-        set_bit(KEY_GESTURE_UP_ARROW, ts->input_dev->keybit);
-        set_bit(KEY_GESTURE_LEFT_ARROW, ts->input_dev->keybit);
-        set_bit(KEY_GESTURE_RIGHT_ARROW, ts->input_dev->keybit);
-        set_bit(KEY_GESTURE_DOWN_ARROW, ts->input_dev->keybit);
-        set_bit(KEY_GESTURE_SWIPE_LEFT, ts->input_dev->keybit);
-        set_bit(KEY_GESTURE_SWIPE_DOWN, ts->input_dev->keybit);
-        set_bit(KEY_GESTURE_SWIPE_RIGHT, ts->input_dev->keybit);
-        set_bit(KEY_GESTURE_SWIPE_UP, ts->input_dev->keybit);
-        set_bit(KEY_GESTURE_SINGLE_TAP, ts->input_dev->keybit);
+        set_bit(KEY_WAKEUP, ts->input_dev->keybit);
+        for (i = UpVee; i <= SGESTRUE; i++) {
+            set_bit(KEY_GESTURE_START + i, ts->input_dev->keybit);
+        }
     }
 
     ts->kpd_input_dev->name = TPD_DEVICE"_kpd";
@@ -5771,6 +5875,7 @@ static int init_parse_dts(struct device *dev, struct touchpanel_data *ts)
     ts->wireless_charger_support = of_property_read_bool(np, "wireless_charger_support");
     ts->headset_pump_support    = of_property_read_bool(np, "headset_pump_support");
     ts->black_gesture_support   = of_property_read_bool(np, "black_gesture_support");
+    ts->black_gesture_indep_support   = true;
     ts->single_tap_support      = of_property_read_bool(np, "single_tap_support");
     ts->gesture_test_support    = of_property_read_bool(np, "black_gesture_test_support");
     ts->fw_update_app_support   = of_property_read_bool(np, "fw_update_app_support");
@@ -6654,18 +6759,11 @@ int register_common_touch_device(struct touchpanel_data *pdata)
 
     //step14 : suspend && resume fuction register
 #if defined(CONFIG_DRM_MSM)
-    ts->fb_notif.notifier_call = fb_notifier_callback;
-    ret = msm_drm_register_client(&ts->fb_notif);
-    if (ret) {
-        TPD_INFO("Unable to register fb_notifier: %d\n", ret);
-    }
-#elif defined(CONFIG_FB)
-    ts->fb_notif.notifier_call = fb_notifier_callback;
-    ret = fb_register_client(&ts->fb_notif);
-    if (ret) {
-        TPD_INFO("Unable to register fb_notifier: %d\n", ret);
-    }
-#endif/*CONFIG_FB*/
+    ts->msm_drm_notif.notifier_call = msm_drm_notifier_callback;
+    ret = msm_drm_register_client(&ts->msm_drm_notif);
+    if (ret)
+        TPD_INFO("Unable to register msm_drm_notifier: %d\n", ret);
+#endif
 
     //step15 : workqueue create(speedup_resume)
     ts->speedup_resume_wq = create_singlethread_workqueue("speedup_resume_wq");
@@ -7308,32 +7406,24 @@ static void speedup_resume(struct work_struct *work)
     complete(&ts->pm_complete);
 }
 
-#if defined(CONFIG_FB) || defined(CONFIG_DRM_MSM)
-static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
+#if defined(CONFIG_DRM_MSM)
+static int msm_drm_notifier_callback(
+    struct notifier_block *self, unsigned long event, void *data)
 {
     int *blank;
     int timed_out = -1;
-    struct fb_event *evdata = data;
-    struct touchpanel_data *ts = container_of(self, struct touchpanel_data, fb_notif);
+    struct msm_drm_notifier *evdata = data;
+    struct touchpanel_data *ts = container_of(self, struct touchpanel_data, msm_drm_notif);
 
     //to aviod some kernel bug (at fbmem.c some local veriable are not initialized)
-#ifdef CONFIG_DRM_MSM
     if(event != MSM_DRM_EARLY_EVENT_BLANK && event != MSM_DRM_EVENT_BLANK)
-#else
-    if(event != FB_EARLY_EVENT_BLANK && event != FB_EVENT_BLANK)
-#endif
         return 0;
 
     if (evdata && evdata->data && ts && ts->chip_data) {
         blank = evdata->data;
         TPD_INFO("%s: event = %ld, blank = %d\n", __func__, event, *blank);
-#ifdef CONFIG_DRM_MSM
         if (*blank == MSM_DRM_BLANK_POWERDOWN) { //suspend
             if (event == MSM_DRM_EARLY_EVENT_BLANK) {    //early event
-#else
-        if (*blank == FB_BLANK_POWERDOWN) { //suspend
-            if (event == FB_EARLY_EVENT_BLANK) {    //early event
-#endif
                 timed_out = wait_for_completion_timeout(&ts->pm_complete, 0.5 * HZ); //wait resume over for 0.5s
                 if ((0 == timed_out) || (ts->pm_complete.done)) {
                     TPD_INFO("completion state, timed_out:%d, done:%d\n", timed_out, ts->pm_complete.done);
@@ -7351,24 +7441,15 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
                         disable_irq_nosync(ts->irq);
                     }
                 }
-#ifdef CONFIG_DRM_MSM
             } else if (event == MSM_DRM_EVENT_BLANK) {   //event
-#else
-            } else if (event == FB_EVENT_BLANK) {   //event
-#endif
                 if (ts->tp_suspend_order == TP_LCD_SUSPEND) {
 
                 } else if (ts->tp_suspend_order == LCD_TP_SUSPEND) {
                     tp_suspend(ts->dev);
                 }
             }
-#ifdef CONFIG_DRM_MSM
         } else if (*blank == MSM_DRM_BLANK_UNBLANK) {//resume
             if (event == MSM_DRM_EARLY_EVENT_BLANK) {    //early event
-#else
-        } else if (*blank == FB_BLANK_UNBLANK ) {//resume
-            if (event == FB_EARLY_EVENT_BLANK) {    //early event
-#endif
                 timed_out = wait_for_completion_timeout(&ts->pm_complete, 0.5 * HZ); //wait suspend over for 0.5s
                 if ((0 == timed_out) || (ts->pm_complete.done)) {
                     TPD_INFO("completion state, timed_out:%d, done:%d\n", timed_out, ts->pm_complete.done);
@@ -7383,11 +7464,7 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
                         disable_irq_nosync(ts->irq);
                     }
                 }
-#ifdef CONFIG_DRM_MSM
             } else if (event == MSM_DRM_EVENT_BLANK) {   //event
-#else
-            } else if (event == FB_EVENT_BLANK) {   //event
-#endif
                 if (ts->tp_resume_order == TP_LCD_RESUME) {
 
                 } else if (ts->tp_resume_order == LCD_TP_RESUME) {
