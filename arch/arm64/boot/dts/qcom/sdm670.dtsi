@@ -254,9 +254,9 @@
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x600>;
-			clock-frequency = <1708800000>;
+			clock-frequency = <2208000000>;
 			enable-method = "psci";
-			efficiency = <632>;
+			efficiency = <1024>;
 			cache-size = <0x20000>;
 			cpu-release-addr = <0x0 0x90000000>;
 			next-level-cache = <&L2_600>;
@@ -286,9 +286,9 @@
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x700>;
-			clock-frequency = <1708800000>;
+			clock-frequency = <2208000000>;
 			enable-method = "psci";
-			efficiency = <632>;
+			efficiency = <1024>;
 			cache-size = <0x20000>;
 			cpu-release-addr = <0x0 0x90000000>;
 			next-level-cache = <&L2_700>;
@@ -387,10 +387,9 @@
 				2054400    547
 				2169600    627
 				2208000    658
-				2304000    694
 			>;
 			idle-cost-data = <
-				100 80 60 40 20
+				30 25 20 15 10
 			>;
 		};
 		
@@ -426,10 +425,9 @@
 				2054400    85
 				2169600    87
 				2208000    90
-				2304000    92
 			>;
 			idle-cost-data = <
-				30 25 20 15 10
+				5 4 3 2 1
 			>;
 		};
 	};
@@ -3227,8 +3225,8 @@
 /* sdm670.dtsi */
 &clock_cpucc {
 	qcom,cpufreq-table-0 =
+		<300000>,
 		<576000>,
-		<748800>,
 		<998400>,
 		<1324800>,
 		<1516800>,
@@ -3236,6 +3234,7 @@
 		<1708800>;
 
 	qcom,cpufreq-table-6 =
+		<300000>,
 		<652800>,
 		<825600>,
 		<1132800>,
@@ -3245,5 +3244,4 @@
 		<1996800>,
 		<2054400>,
 		<2208000>,
-		<2304000>;
 };
