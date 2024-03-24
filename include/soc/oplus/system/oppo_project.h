@@ -115,7 +115,7 @@ enum PCB_VERSION {
 
 #define OPPO_ENG_VERSION_NOT_INIT      -1
 enum OPPO_ENG_VERSION {
-    OEM_RELEASE             = 0x00,
+    RELEASE               = 0x00,
     AGING                   = 0x01,
     CTA                     = 0x02,
     PERFORMANCE             = 0x03,
@@ -290,8 +290,8 @@ void get_serialID(char *serialno);
 //cdt interface for Q or R
 unsigned int get_project(void);
 unsigned int get_project_oldcdt(void);
-unsigned int is_project(int project);
-unsigned int is_project_oldcdt(int project);
+unsigned int is_project(OPPO_PROJECT_OLDCDT project);
+unsigned int is_project_oldcdt(OPPO_PROJECT_OLDCDT project);
 unsigned int get_PCB_Version_oldcdt(void);
 unsigned int get_Modem_Version_oldcdt(void);
 unsigned int get_Operator_Version_oldcdt(void);
