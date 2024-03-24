@@ -397,6 +397,12 @@ bool is_confidential(void)
 }
 EXPORT_SYMBOL(is_confidential);
 
+bool oppo_daily_build(void)
+{
+    return false;
+}
+EXPORT_SYMBOL(oppo_daily_build);
+
 uint32_t get_oppo_feature(enum F_INDEX index)
 {
     if(is_new_cdt()){
