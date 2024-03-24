@@ -27,11 +27,10 @@
 
 #define MAX_LIMIT_DATA_LENGTH         100
 
-extern char *saved_command_line;
 static bool is_tp_type_got_in_match = false;
 int g_tp_dev_vendor = TP_UNKNOWN;
 char *g_tp_chip_name;
-int g_tp_prj_id = 0;
+
 /*if can not compile success, please update vendor/oppo_touchsreen*/
 #define HX83112A_NF_CHIP_NAME "OPPO_TP_NOFLASH"
 struct tp_dev_name tp_dev_names[] = {
@@ -111,67 +110,10 @@ bool __init tp_judge_ic_match(char * tp_ic_name)
 		pr_err("Invalid project\n");
 		break;
 	}
-	return true;
-}
-
-#define GET_TP_DEV_NAME(tp_type) ((tp_dev_names[tp_type].type == (tp_type))?tp_dev_names[tp_type].name:"UNMATCH")
-bool tp_judge_ic_match_commandline(struct panel_info *panel_data)
-{
-    int prj_id = 0;
-    int i = 0;
-	bool ic_matched = false;
-    prj_id = get_project();
-	pr_err("[TP] get_project() = %d \n", prj_id);
-    pr_err("[TP] boot_command_line = %s \n", saved_command_line);
-
-	for(i = 0; i < panel_data->project_num; i++) {
-        if(prj_id == panel_data->platform_support_project[i]){
-            g_tp_prj_id = panel_data->platform_support_project_dir[i];
-            if(strstr(saved_command_line, panel_data->platform_support_commandline[i])||strstr("default_commandline", panel_data->platform_support_commandline[i]) ){
-                pr_err("[TP] Driver match the project\n");
-                ic_matched = true;
-            }
-            else{
-                ic_matched = false;
-		break;
-            }
-        }
-    }
-	if(!ic_matched) {
-	pr_err("[TP] Driver does not match the project\n");
 	pr_err("Lcd module not found\n");
 	return false;
-	}
 
-	switch(prj_id) {
-	case 18097:
-	pr_info("[TP] case 18097\n");
-	is_tp_type_got_in_match = true;
-
-	if (strstr(saved_command_line, "synaptics_s3706")) {
-		pr_err("[TP] touch ic = synaptics_s3706 \n");
-		tp_used_index = synaptics_s3706;
-		g_tp_dev_vendor = TP_SAMSUNG;
-	}
-
-	break;
-	case 18041:
-	pr_info("[TP] case 18041\n");
-	is_tp_type_got_in_match = true;
-
-	if (strstr(saved_command_line, "synaptics_s3706")) {
-		pr_err("[TP] touch ic = synaptics_s3706 \n");
-		tp_used_index = synaptics_s3706;
-		g_tp_dev_vendor = TP_SAMSUNG;
-	}
-	break;
-
-    default:
-        pr_info("other project, no need process here!\n");
-        break;
-	}
 	pr_info("[TP]ic:%d, vendor:%d\n", tp_used_index, g_tp_dev_vendor);
-	return true;
 }
 
 int tp_util_get_vendor(struct hw_resource *hw_res, struct panel_info *panel_data)
@@ -233,6 +175,12 @@ int tp_util_get_vendor(struct hw_resource *hw_res, struct panel_info *panel_data
             "tp/%d/LIMIT_%s_%s.img",
             prj_id, panel_data->chip_name, vendor);
     }
+	panel_data->manufacture_info.fw_path = panel_data->fw_name;
+
+	pr_info("[TP]vendor:%s fw:%s limit:%s\n",
+	vendor,
+	panel_data->fw_name,
+	panel_data->test_limit_name == NULL?"NO Limit":panel_data->test_limit_name);
 
 	switch(get_project()) {
 	case OPPO_18621:
@@ -247,14 +195,6 @@ int tp_util_get_vendor(struct hw_resource *hw_res, struct panel_info *panel_data
         panel_data->firmware_headfile.firmware_data = NULL;
         panel_data->firmware_headfile.firmware_size = 0;
 	}
-
-	panel_data->manufacture_info.fw_path = panel_data->fw_name;
-
-	pr_info("[TP]vendor:%s fw:%s limit:%s\n",
-	vendor,
-	panel_data->fw_name,
-	panel_data->test_limit_name == NULL?"NO Limit":panel_data->test_limit_name);
-
 	return 0;
 }
 

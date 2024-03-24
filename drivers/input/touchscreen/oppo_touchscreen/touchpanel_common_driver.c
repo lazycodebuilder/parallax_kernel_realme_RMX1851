@@ -5848,10 +5848,6 @@ static int init_parse_dts(struct device *dev, struct touchpanel_data *ts)
                 TPD_INFO("platform_support_project_external_name not specified");
             }
         }
-        if(!tp_judge_ic_match_commandline(&ts->panel_data )){
-            TPD_INFO("commandline not match, please update dts");
-            goto commandline_kazalloc_error;
-        }
     }
     else {
         TPD_INFO("project and commandline not specified in dts, please update dts");

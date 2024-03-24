@@ -209,7 +209,7 @@ unsigned int get_project(void)
 }
 EXPORT_SYMBOL(get_project);
 
-unsigned int is_project(int project)
+unsigned int is_project(OPPO_PROJECT project)
 {
     init_project_version();
 
