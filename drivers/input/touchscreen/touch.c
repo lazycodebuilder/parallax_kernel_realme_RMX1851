@@ -233,6 +233,5 @@ int reconfig_power_control(struct touchpanel_data *ts)
             pr_info("18041 T0 use TX,RX=[%d],[%d]\n", ts->hw_res.TX_NUM, ts->hw_res.RX_NUM);
         }
     }
-
     return ret;
 }
