@@ -33,12 +33,6 @@ config TOUCHPANEL_MULTI_NOFLASH
 	help
 	  Say Y here if you have multiple noflash touchscreen.
 
-config TOUCHPANEL_SYNAPTICS
-#	default y
-	bool "TP Synaptics_IC enable or not for OPPO"
-	help
-	say Y to enable driver for Touchpanel using Synaptics_IC
-
 config TOUCHPANEL_HIMAX
 #	default y
 	bool "TP HIMAX_IC enable or not for OPPO"
@@ -46,10 +40,6 @@ config TOUCHPANEL_HIMAX
 	say Y to enable driver for Touchpanel using HIMAX_IC
 	
 source "drivers/input/touchscreen/oppo_touchscreen/util_interface/Kconfig"
-
-if TOUCHPANEL_SYNAPTICS
-source "drivers/input/touchscreen/oppo_touchscreen/Synaptics/Kconfig"
-endif
 
 if TOUCHPANEL_HIMAX
 source "drivers/input/touchscreen/oppo_touchscreen/Himax/Kconfig"

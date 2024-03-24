@@ -16,7 +16,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/serio.h>
-#include "oppo_touchscreen/Synaptics/S3706/synaptics_s3706.h"
 #include <soc/oppo/oppo_project.h>
 #include "oppo_touchscreen/tp_devices.h"
 #include "oppo_touchscreen/touchpanel_common.h"
@@ -83,16 +82,6 @@ bool __init tp_judge_ic_match(char * tp_ic_name)
 	//pr_err("[TP] boot_command_line = %s \n", boot_command_line);
 
 	switch(get_project()) {
-	case 18097:
-		pr_info("[TP] tp judge ic forward for 18097\n");
-		if (strstr(tp_ic_name, "synaptics-s3706")) {
-			pr_err("[TP] Project Name use synaptics\n");
-			is_tp_type_got_in_match = true;
-			return true;
-		} else {
-			pr_err("[TP] ERROR! ic is not match driver\n");
-			return false;
-		}
 	case 18621:
 	case 19691:
 		if(strstr(tp_ic_name, "himax,hx83112a_nf")){
