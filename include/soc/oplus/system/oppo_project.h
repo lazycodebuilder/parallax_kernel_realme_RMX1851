@@ -115,19 +115,19 @@ enum PCB_VERSION {
 
 #define OPPO_ENG_VERSION_NOT_INIT      -1
 enum OPPO_ENG_VERSION {
-    RELEASE                = 0x00,
-    AGING                   = 0x01,
-    CTA                     = 0x02,
-    PERFORMANCE          = 0x03,
-    PREVERSION              = 0x04,
-    ALL_NET_CMCC_TEST      = 0x05,
-    ALL_NET_CMCC_FIELD      = 0x06,
-    ALL_NET_CU_TEST         = 0x07,
-    ALL_NET_CU_FIELD        = 0x08,
-    ALL_NET_CT_TEST         = 0x09,
-    ALL_NET_CT_FIELD        = 0x0A,
-    HIGH_TEMP_AGING       = 0x0B,
-	FACTORY				   = 0x0C,
+	RELEASE                = 0x00,
+	AGING                   = 0x01,
+	CTA                      = 0x02,
+	PERFORMANCE          = 0x03,
+	PREVERSION             = 0x04,
+	ALL_NET_CMCC_TEST    = 0x05,
+	ALL_NET_CMCC_FIELD   = 0x06,
+	ALL_NET_CU_TEST       = 0x07,
+	ALL_NET_CU_FIELD       = 0x08,
+	ALL_NET_CT_TEST       = 0x09,
+	ALL_NET_CT_FIELD       = 0x0A,
+	HIGH_TEMP_AGING      = 0x0B,
+	FACTORY				  = 0x0C,
 };
 
 typedef  struct
@@ -185,14 +185,13 @@ enum OPPO_MODEM {
     RF_VERSION__16      = 0x06,
     RF_VERSION__17      = 0x07,
     RF_VERSION__18      = 0x08,
-    RF_VERSION__19      = 0x08,
-    RF_VERSION__20      = 0x09,
-    RF_VERSION__21      = 0x10,
-    RF_VERSION__22      = 0x11,
-    RF_VERSION__23      = 0x12,
-    RF_VERSION__31      = 0x13,
-    RF_VERSION__32      = 0x14,
-    RF_VERSION__33      = 0x15,
+    RF_VERSION__19      = 0x09,
+    RF_VERSION__21,
+    RF_VERSION__22,
+    RF_VERSION__23,
+    RF_VERSION__31,
+    RF_VERSION__32,
+    RF_VERSION__33,
     RF_VERSION__1A      = 0x0A,
 };
 
@@ -217,16 +216,20 @@ enum OPPO_PROJECT {
 };
 
 enum OPPO_OPERATOR {
-    OPERATOR_UNKOWN                       = 0,
-    OPERATOR_OPEN_MARKET                 = 1,
-    OPERATOR_CHINA_MOBILE                 = 2,
-    OPERATOR_CHINA_UNICOM                = 3,
-    OPERATOR_CHINA_TELECOM               = 4,
-    OPERATOR_FOREIGN                       = 5,
-    OPERATOR_FOREIGN_WCDMA              = 6,   /*qifeng.liu 2014.08.07 FOR MAC*/
-    OPERATOR_FOREIGN_RESERVED           = 7,    /*shaoming 2014/10/04 add for 14085's dual sim version*/
-    OPERATOR_ALL_CHINA_CARRIER           = 8,    /*instead of TELECOM CARRIER because of history Tong.han@Bsp.Group.Tp add for all china carrier phone, 2015/03/23*/
-    OPERATOR_ALL_CHINA_CARRIER_MOBILE  = 9,    /*rendong.shi@Bsp.Group.Tp add for all china carrier MOBILE phone, 2016/01/07*/
+    OPERATOR_UNKOWN                       = 0x00,
+    OPERATOR_OPEN_MARKET                 = 0x01,
+    OPERATOR_CHINA_MOBILE                 = 0x02,
+    OPERATOR_CHINA_UNICOM                = 0x03,
+    OPERATOR_CHINA_TELECOM               = 0x04,
+    OPERATOR_FOREIGN                       = 0x05,
+/*#ifdef VENDOR_EDIT*/
+/*TongJing.Shi@EXP.DataComm.Phone, 2014.04.18, Add for exp just 3G no 4G*/
+    OPERATOR_FOREIGN_WCDMA              = 0x06,   /*qifeng.liu 2014.08.07 FOR MAC*/
+    OPERATOR_FOREIGN_RESERVED           = 0x07,    /*shaoming 2014/10/04 add for 14085's dual sim version*/
+    OPERATOR_ALL_CHINA_CARRIER           = 0x08,    /*instead of TELECOM CARRIER because of history Tong.han@Bsp.Group.Tp add for all china carrier phone, 2015/03/23*/
+    OPERATOR_ALL_CHINA_CARRIER_MOBILE  = 0x09,    /*rendong.shi@Bsp.Group.Tp add for all china carrier MOBILE phone, 2016/01/07*/
+    OPERATOR_ALL_CHINA_CARRIER_UNICOM  = 0x0A,    /*rendong.shi@Bsp.Group.Tp add for all china carrier UNICOM  phone, 2016/01/07*/
+    OPERATOR_FOREIGN_EUROPE              = 0x0B,    //wanghao@Bsp.Group.Tp add for foreign europe  phone, 2018/07/14
     OPERATOR_RM_FOREIGN                   = 30,  //linzhenming add for realme foreign  18623
     OPERATOR_RM_FOREIGN_INDIA             = 31,  //linzhenming add for realme foreign  india 18621
     OPERATOR_RM_FOREIGN_VIETNAM_128GB  = 32,  //linzhenming add for realme foreign  vietnam 18625 
