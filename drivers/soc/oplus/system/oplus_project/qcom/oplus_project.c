@@ -19,6 +19,22 @@
 #define UINT2Ptr(n)        (uint32_t *)(n)
 #define Ptr2UINT32(p)    (uintptr_t)(p)
 
+#define PROJECT_VERSION            (0x1)
+#define PCB_VERSION                (0x2)
+#define RF_INFO                    (0x3)
+#define MODEM_TYPE                (0x4)
+#define OPPO_BOOTMODE            (0x5)
+#define SECURE_TYPE                (0x6)
+#define SECURE_STAGE            (0x7)
+#define OCP_NUMBER                (0x8)
+#define SERIAL_NUMBER            (0x9)
+#define ENG_VERSION                (0xA)
+#define CONFIDENTIAL_STATUS        (0xB)
+#define CDT_INTEGRITY            (0xC)
+#define OPPO_FEATURE            (0xD)
+#define OPERATOR_NAME            (0xE)
+#define PROJECT_TEST            (0x1F)
+
 static ProjectInfoOCDT *g_project = NULL;
 
 static struct pcb_match pcb_str[] = {
