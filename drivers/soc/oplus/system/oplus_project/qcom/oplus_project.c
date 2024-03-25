@@ -68,7 +68,7 @@ struct proc_dir_entry *oppo_info_temp = NULL;
 
 static void init_project_version(void)
 {
-	unsigned int smem_size = (sizeof(ProjectInfoOCDT) + 3)&(~0x3);
+	unsigned int smem_size;
     void *smem_addr;
     char *PCB_version_name = NULL;
     uint16_t index = 0;
@@ -78,7 +78,7 @@ static void init_project_version(void)
 	}
     /*get project info from smem*/
     else {
-		smem_addr = smem_get_entry(SMEM_PROJECT, smem_size, 0, SMEM_ANY_HOST_FLAG);
+		smem_addr = smem_get_entry(SMEM_PROJECT, &smem_size, 0, SMEM_ANY_HOST_FLAG);
 
 		if (IS_ERR(smem_addr)) {
 			pr_err("unable to acquire smem SMEM_PROJECT entry\n");
