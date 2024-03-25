@@ -9,19 +9,17 @@
 #include <linux/proc_fs.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
-#include <soc/qcom/smem.h>
-#include <soc/oplus/system/oplus_project.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/syscalls.h>
 #include <linux/string.h>
+#include <soc/oplus/system/oplus_project.h>
+#include <soc/qcom/smem.h>
 
 #define UINT2Ptr(n)        (uint32_t *)(n)
 #define Ptr2UINT32(p)    (uintptr_t)(p)
 
-struct proc_dir_entry *oppo_info = NULL;
-struct proc_dir_entry *oppo_info_temp = NULL;
-static ProjectInfoOCDT *format = NULL;
+static ProjectInfoOCDT *g_project = NULL;
 
 static struct pcb_match pcb_str[] = {
     {.version=PRE_EVB1, .str="PRE_EVB1"},
@@ -65,21 +63,36 @@ static struct pcb_match pcb_str[] = {
     {.version=MP6, .str="MP6"},
 };
 
+struct proc_dir_entry *oppo_info = NULL;
+struct proc_dir_entry *oppo_info_temp = NULL;
+
 static void init_project_version(void)
 {
+	unsigned int smem_size = (sizeof(ProjectInfoOCDT) + 3)&(~0x3);
+    void *smem_addr;
     char *PCB_version_name = NULL;
     uint16_t index = 0;
-    
-    unsigned int len = (sizeof(ProjectInfoOCDT) + 3)&(~0x3);
 
-        /*get project info from smem*/
-        format = (ProjectInfoOCDT *)smem_alloc(SMEM_PROJECT, len, 0, 0);
-        if (format == ERR_PTR(-EPROBE_DEFER)) {
-                format = NULL;
+    if (g_project) {
+        return;
+	}
+    /*get project info from smem*/
+    else {
+		smem_addr = smem_get_entry(SMEM_PROJECT, smem_size, 0, SMEM_ANY_HOST_FLAG);
+
+		if (IS_ERR(smem_addr)) {
+			pr_err("unable to acquire smem SMEM_PROJECT entry\n");
+			return;
+		}
+
+        g_project = (ProjectInfoOCDT *)smem_addr;
+        if (g_project == ERR_PTR(-EPROBE_DEFER)) {
+            g_project = NULL;
+            return;
         }
 
         do {
-            if(pcb_str[index].version == format->nDataSCDT.PCB){
+            if(pcb_str[index].version == g_project->nDataSCDT.PCB){
                 PCB_version_name = pcb_str[index].str;
                 break;
             }
@@ -87,16 +100,17 @@ static void init_project_version(void)
         }while(index < sizeof(pcb_str)/sizeof(struct pcb_match));
 
         pr_err("KE Project:%d, Audio:%d, nRF:%d, PCB:%s\n",
-            format->nDataBCDT.ProjectNo,
-            format->nDataBCDT.AudioIdx,
-            format->nDataSCDT.RF,PCB_version_name);
+            g_project->nDataBCDT.ProjectNo,
+            g_project->nDataBCDT.AudioIdx,
+            g_project->nDataSCDT.RF,PCB_version_name);
         pr_err("OCP: %d 0x%x %c %d 0x%x %c\n",
-            format->nDataSCDT.PmicOcp[0],
-            format->nDataSCDT.PmicOcp[1],
-            format->nDataSCDT.PmicOcp[2],
-            format->nDataSCDT.PmicOcp[3],
-            format->nDataSCDT.PmicOcp[4],
-            format->nDataSCDT.PmicOcp[5]);
+            g_project->nDataSCDT.PmicOcp[0],
+            g_project->nDataSCDT.PmicOcp[1],
+            g_project->nDataSCDT.PmicOcp[2],
+            g_project->nDataSCDT.PmicOcp[3],
+            g_project->nDataSCDT.PmicOcp[4],
+            g_project->nDataSCDT.PmicOcp[5]);
+    }
 
     if(is_new_cdt()){
 		if(oppo_info){
@@ -148,15 +162,13 @@ __setup("cdt_integrity=", cdt_setup);
 
 unsigned int get_project(void)
 {
- if (format == NULL) {
+  if (g_project == NULL) {
     init_project_version();
-  }
-    return format->nDataBCDT.ProjectNo;
-
+  }    return g_project->nDataBCDT.ProjectNo;
 }
 EXPORT_SYMBOL(get_project);
 
-unsigned int is_project(OPPO_PROJECT_OLDCDT project)
+unsigned int is_project(OPPO_PROJECT project)
 {
     return (get_project() == project?1:0);
 }
@@ -164,9 +176,9 @@ EXPORT_SYMBOL(is_project);
 
 unsigned int is_new_cdt(void)/*Q and R is new*/
 {
-  if (format == NULL) {
-	init_project_version();
-  }
+  if (g_project == NULL) {
+    init_project_version();
+  }    
     if(get_cdt_version() == OCDT_VERSION_1_0)
         return 1;
     else
@@ -175,285 +187,55 @@ unsigned int is_new_cdt(void)/*Q and R is new*/
 
 unsigned int get_PCB_Version(void)
 {
-  if (format == NULL) {
+  if (g_project == NULL) {
     init_project_version();
   }
-    return format->nDataSCDT.PCB;
+    return g_project? g_project->nDataSCDT.PCB:-EINVAL;
 }
 EXPORT_SYMBOL(get_PCB_Version);
 
 unsigned int get_Oppo_Boot_Mode(void)
 {
-  if (format == NULL) {
+  if (g_project == NULL) {
     init_project_version();
   }
-    return format->nDataSCDT.OppoBootMode;
+    return g_project?g_project->nDataSCDT.OppoBootMode:0;
 }
 EXPORT_SYMBOL(get_Oppo_Boot_Mode);
 
 int32_t get_Modem_Version(void)
 {
-  if (format == NULL) {
+  if (g_project == NULL) {
     init_project_version();
   }
     /*cdt return modem,ocdt return RF*/
-    return format->nDataSCDT.RF;
+    return g_project?g_project->nDataSCDT.RF:-EINVAL;
 }
 EXPORT_SYMBOL(get_Modem_Version);
 
 int32_t get_Operator_Version(void)
 {
-  if (format == NULL) {
+  if (g_project == NULL) {
     init_project_version();
   }
-    return format->nDataSCDT.Operator;
+    if(!is_new_cdt())
+        return g_project?g_project->nDataSCDT.Operator:-EINVAL;
+    else
+        return -EINVAL;
 }
 EXPORT_SYMBOL(get_Operator_Version);
 
 unsigned int get_dtsiNo(void)
 {
-    return (format && is_new_cdt()) ? format->nDataBCDT.DtsiNo : 0;
+    return (g_project && is_new_cdt()) ? g_project->nDataBCDT.DtsiNo : 0;
 }
 EXPORT_SYMBOL(get_dtsiNo);
 
 unsigned int get_audio(void)
 {
-    return (format && is_new_cdt()) ? format->nDataBCDT.AudioIdx : 0;
+    return (g_project && is_new_cdt()) ? g_project->nDataBCDT.AudioIdx : 0;
 }
 EXPORT_SYMBOL(get_audio);
-
-
-/*this module just init for creat files to show which version*/
-static ssize_t prjVersion_read_proc(struct file *file, char __user *buf,
-                size_t count, loff_t *off)
-{
-        char page[256] = {0};
-        int len = 0;
-        len = sprintf(page, "%d", get_project());
-
-        if (len > *off) {
-                len -= *off;
-        }
-        else
-                len = 0;
-        if (copy_to_user(buf, page, (len < count ? len : count))) {
-                return -EFAULT;
-        }
-        *off += len < count ? len : count;
-        return (len < count ? len : count);
-}
-
-struct file_operations prjVersion_proc_fops = {
-        .read = prjVersion_read_proc,
-        .write = NULL,
-};
-
-
-static ssize_t pcbVersion_read_proc(struct file *file, char __user *buf,
-                size_t count, loff_t *off)
-{
-        char page[256] = {0};
-        int len = 0;
-
-        len = sprintf(page, "%d", get_PCB_Version());
-
-        if (len > *off) {
-                len -= *off;
-        }
-        else
-                len = 0;
-
-        if (copy_to_user(buf, page, (len < count ? len : count))) {
-                return -EFAULT;
-        }
-        *off += len < count ? len : count;
-        return (len < count ? len : count);
-}
-
-struct file_operations pcbVersion_proc_fops = {
-        .read = pcbVersion_read_proc,
-};
-
-
-static ssize_t operatorName_read_proc(struct file *file, char __user *buf,
-                size_t count, loff_t *off)
-{
-        char page[256] = {0};
-        int len = 0;
-
-        len = sprintf(page, "%d", get_Operator_Version());
-
-        if (len > *off) {
-                len -= *off;
-        }
-        else
-                len = 0;
-
-        if (copy_to_user(buf, page, (len < count ? len : count))) {
-                return -EFAULT;
-        }
-        *off += len < count ? len : count;
-        return (len < count ? len : count);
-}
-
-struct file_operations operatorName_proc_fops = {
-        .read = operatorName_read_proc,
-};
-
-
-static ssize_t modemType_read_proc(struct file *file, char __user *buf,
-                size_t count, loff_t *off)
-{
-        char page[256] = {0};
-        int len = 0;
-
-        len = sprintf(page, "%d", get_Modem_Version());
-
-        if (len > *off) {
-                len -= *off;
-        }
-        else
-                len = 0;
-
-        if (copy_to_user(buf, page, (len < count ? len : count))) {
-                return -EFAULT;
-        }
-        *off += len < count ? len : count;
-        return (len < count ? len : count);
-}
-
-struct file_operations modemType_proc_fops = {
-        .read = modemType_read_proc,
-};
-
-
-static ssize_t oppoBootmode_read_proc(struct file *file, char __user *buf,
-                size_t count, loff_t *off)
-{
-        char page[256] = {0};
-        int len = 0;
-
-        len = sprintf(page, "%d", get_Oppo_Boot_Mode());
-
-        if (len > *off) {
-                len -= *off;
-        }
-        else
-                len = 0;
-
-        if (copy_to_user(buf, page, (len < count ? len : count))) {
-                return -EFAULT;
-        }
-        *off += len < count ? len : count;
-        return (len < count ? len : count);
-}
-
-struct file_operations oppoBootmode_proc_fops = {
-        .read = oppoBootmode_read_proc,
-};
-
-static int oppo_eng_version = OPPO_ENG_VERSION_NOT_INIT;
-static int oppo_confidential = true;
-int get_eng_version(void)
-{
-    int i = 0, eng_len = 3;
-    char *substr = NULL;
-
-    if (oppo_eng_version != OPPO_ENG_VERSION_NOT_INIT)
-        return oppo_eng_version;
-
-    if (strstr(boot_command_line, "is_confidential=0"))
-        oppo_confidential = false;
-
-    oppo_eng_version = RELEASE;
-    substr = strstr(boot_command_line, "eng_version=");
-    if (!substr) {      //if cmdline does't cover the version, we use normal version as default version
-        printk(KERN_EMERG "cmdline does't have the sw_version %s \n", __func__);
-        return oppo_eng_version;
-    }
-
-    substr += strlen("eng_version=");
-    for (i = 0; substr[i] != ' ' && i < eng_len && substr[i] != '\0'; i++) {
-        if ((substr[i] >= '0') && (substr[i] <= '9')) {
-            oppo_eng_version = oppo_eng_version * 10 + substr[i] - '0';
-        } else {
-            oppo_eng_version = RELEASE;
-            break;
-        }
-    }
-
-    return oppo_eng_version;
-}
-EXPORT_SYMBOL(get_eng_version);
-
-bool is_confidential(void)
-{
-    if (oppo_eng_version != OPPO_ENG_VERSION_NOT_INIT)
-        return oppo_confidential;
-
-    get_eng_version();
-
-    return oppo_confidential;
-}
-EXPORT_SYMBOL(is_confidential);
-
-bool oppo_daily_build(void)
-{
-    return false;
-}
-EXPORT_SYMBOL(oppo_daily_build);
-
-uint32_t get_oppo_feature(enum F_INDEX index)
-{
-    if(is_new_cdt()){
-      if (format == NULL) {
-       init_project_version();
-      }
-        if (index < 1 || index > FEATURE_COUNT)
-            return 0;
-        return format?format->nDataBCDT.Feature[index-1]:0;
-    }
-    else
-        return 0;
-}
-EXPORT_SYMBOL(get_oppo_feature);
-
-static ssize_t eng_version_read_proc(struct file *file, char __user *buf,
-                size_t count, loff_t *off)
-{
-        int ret = 0;
-        char page[64] = {0};
-
-        get_eng_version();
-        snprintf(page, 63, "%d", oppo_eng_version);
-        ret = simple_read_from_buffer(buf, count, off, page, strlen(page));
-
-        return ret;
-}
-
-struct file_operations eng_version_proc_fops = {
-        .read = eng_version_read_proc,
-        .open  = simple_open,
-        .owner = THIS_MODULE,
-};
-
-static ssize_t confidential_read_proc(struct file *file, char __user *buf,
-                size_t count, loff_t *off)
-{
-        int ret = 0;
-        char page[64] = {0};
-
-        snprintf(page, 63, "%d", is_confidential());
-        ret = simple_read_from_buffer(buf, count, off, page, strlen(page));
-
-        return ret;
-}
-
-struct file_operations confidential_proc_fops = {
-        .read = confidential_read_proc,
-        .open  = simple_open,
-        .owner = THIS_MODULE,
-};
 
 int rpmb_is_enable(void)
 {
@@ -479,53 +261,80 @@ int rpmb_is_enable(void)
 }
 EXPORT_SYMBOL(rpmb_is_enable);
 
-#define QFPROM_RAW_SERIAL_NUM 0x00786134 /*different at each platform, please ref boot_images\core\systemdrivers\hwio\scripts\xxx\hwioreg.per
-*/
 
-static unsigned int g_serial_id = 0x00; /*maybe can use for debug
-*/
-
-static ssize_t serialID_read_proc(struct file *file, char __user *buf,
-                size_t count, loff_t *off)
+unsigned int get_eng_version(void)
 {
-        char page[256] = {0};
-        int len = 0;
-        len = sprintf(page, "0x%x", g_serial_id);
-
-        if (len > *off) {
-                len -= *off;
-        }
-        else
-                len = 0;
-
-        if (copy_to_user(buf, page, (len < count ? len : count))) {
-                return -EFAULT;
-        }
-        *off += len < count ? len : count;
-        return (len < count ? len : count);
+  if (g_project == NULL) {
+    init_project_version();
+  }
+    return g_project?g_project->nDataECDT.Version:-EINVAL;
 }
+EXPORT_SYMBOL(get_eng_version);
 
+extern char *saved_command_line;
 
-struct file_operations serialID_proc_fops = {
-        .read = serialID_read_proc,
-};
+bool oppo_daily_build(void)
+{
+    return false;
+}
+EXPORT_SYMBOL(oppo_daily_build);
+
+bool is_confidential(void)
+{
+  if (g_project == NULL) {
+    init_project_version();
+  }
+    return g_project?g_project->nDataECDT.Is_confidential:-EINVAL;
+}
+EXPORT_SYMBOL(is_confidential);
+
+uint32_t get_oppo_feature(enum F_INDEX index)
+{
+    if(is_new_cdt()){
+      if (g_project == NULL) {
+        init_project_version();
+      }
+        if (index < 1 || index > FEATURE_COUNT)
+            return 0;
+        return g_project?g_project->nDataBCDT.Feature[index-1]:0;
+    }
+    else
+        return 0;
+}
+EXPORT_SYMBOL(get_oppo_feature);
+
+#define SERIALNO_LEN 16
+unsigned int get_serialID(void)
+{
+    unsigned int serial_id = 0xFFFFFFFF;
+
+	char * ptr;
+    char serialno[20] = {0};
+
+    ptr = strstr(saved_command_line, "androidboot.serialno=");
+    ptr += strlen("androidboot.serialno=");
+    strncpy(serialno, ptr, SERIALNO_LEN);
+    serialno[SERIALNO_LEN] = '\0';
+    sscanf(serialno, "%x", &serial_id);
+    return serial_id;
+}
+EXPORT_SYMBOL(get_serialID);
 
 static void dump_ocp_info(struct seq_file *s)
 {
-  if (format == NULL) {
+  if (g_project == NULL) {
     init_project_version();
   }
-
-    if (!format)
+    if (!g_project)
         return;
 
     seq_printf(s, "ocp: %d 0x%x %d 0x%x %c %c",
-        format->nDataSCDT.PmicOcp[0],
-        format->nDataSCDT.PmicOcp[1],
-        format->nDataSCDT.PmicOcp[2],
-        format->nDataSCDT.PmicOcp[3],
-        format->nDataSCDT.PmicOcp[4],
-        format->nDataSCDT.PmicOcp[5]);
+        g_project->nDataSCDT.PmicOcp[0],
+        g_project->nDataSCDT.PmicOcp[1],
+        g_project->nDataSCDT.PmicOcp[2],
+        g_project->nDataSCDT.PmicOcp[3],
+        g_project->nDataSCDT.PmicOcp[4],
+        g_project->nDataSCDT.PmicOcp[5]);
 }
 
 static void dump_serial_info(struct seq_file *s)
@@ -540,24 +349,23 @@ static void dump_project_test(struct seq_file *s)
 
 static void dump_oppo_feature(struct seq_file *s)
 {
-  if (format == NULL) {
+  if (g_project == NULL) {
     init_project_version();
   }
-
-    if (!format)
+    if (!g_project)
         return;
 
     seq_printf(s, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
-        format->nDataBCDT.Feature[0],
-        format->nDataBCDT.Feature[1],
-        format->nDataBCDT.Feature[2],
-        format->nDataBCDT.Feature[3],
-        format->nDataBCDT.Feature[4],
-        format->nDataBCDT.Feature[5],
-        format->nDataBCDT.Feature[6],
-        format->nDataBCDT.Feature[7],
-        format->nDataBCDT.Feature[8],
-        format->nDataBCDT.Feature[9]);
+        g_project->nDataBCDT.Feature[0],
+        g_project->nDataBCDT.Feature[1],
+        g_project->nDataBCDT.Feature[2],
+        g_project->nDataBCDT.Feature[3],
+        g_project->nDataBCDT.Feature[4],
+        g_project->nDataBCDT.Feature[5],
+        g_project->nDataBCDT.Feature[6],
+        g_project->nDataBCDT.Feature[7],
+        g_project->nDataBCDT.Feature[8],
+        g_project->nDataBCDT.Feature[9]);
     return;
 }
 
@@ -729,11 +537,10 @@ static int project_read_func(struct seq_file *s, void *v)
 
 unsigned int get_cdt_version(void)
 {
-  if (format == NULL) {
+  if (g_project == NULL) {
     init_project_version();
   }
-
-    return format?format->Version:0;
+    return g_project?g_project->Version:0;
 }
 
 static int projects_open(struct inode *inode, struct file *file)
@@ -750,24 +557,7 @@ static const struct file_operations project_info_fops = {
 
 static int __init oppo_project_init(void)
 {
-    int ret = 0;
     struct proc_dir_entry *p_entry;
-    void __iomem *serial_id_addr = NULL;
-
-    serial_id_addr = ioremap(QFPROM_RAW_SERIAL_NUM , 4);
-    if (serial_id_addr) {
-            g_serial_id = __raw_readl(serial_id_addr);
-            iounmap(serial_id_addr);
-            printk(KERN_EMERG "serialID 0x%x\n", g_serial_id);
-    } else
-    {
-            g_serial_id = 0xffffffff;
-    }
-
-    #ifdef VENDOR_EDIT
-    // Cong.Dai@psw.bsp.tp, 2019.06.15, add for init engineering version
-    get_eng_version();
-    #endif /* VENDOR_EDIT */
 
     oppo_info_temp = proc_mkdir("oplusVersion", NULL);
     oppo_info = proc_mkdir("oppoVersion", NULL);
