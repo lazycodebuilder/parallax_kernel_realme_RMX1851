@@ -162,9 +162,9 @@ __setup("cdt_integrity=", cdt_setup);
 
 unsigned int get_project(void)
 {
-  if (g_project == NULL) {
     init_project_version();
-  }    return g_project->nDataBCDT.ProjectNo;
+
+    return g_project->nDataBCDT.ProjectNo;
 }
 EXPORT_SYMBOL(get_project);
 
@@ -176,9 +176,8 @@ EXPORT_SYMBOL(is_project);
 
 unsigned int is_new_cdt(void)/*Q and R is new*/
 {
-  if (g_project == NULL) {
     init_project_version();
-  }    
+   
     if(get_cdt_version() == OCDT_VERSION_1_0)
         return 1;
     else
@@ -187,27 +186,24 @@ unsigned int is_new_cdt(void)/*Q and R is new*/
 
 unsigned int get_PCB_Version(void)
 {
-  if (g_project == NULL) {
     init_project_version();
-  }
+
     return g_project? g_project->nDataSCDT.PCB:-EINVAL;
 }
 EXPORT_SYMBOL(get_PCB_Version);
 
 unsigned int get_Oppo_Boot_Mode(void)
 {
-  if (g_project == NULL) {
     init_project_version();
-  }
+
     return g_project?g_project->nDataSCDT.OppoBootMode:0;
 }
 EXPORT_SYMBOL(get_Oppo_Boot_Mode);
 
 int32_t get_Modem_Version(void)
 {
-  if (g_project == NULL) {
     init_project_version();
-  }
+
     /*cdt return modem,ocdt return RF*/
     return g_project?g_project->nDataSCDT.RF:-EINVAL;
 }
@@ -215,9 +211,8 @@ EXPORT_SYMBOL(get_Modem_Version);
 
 int32_t get_Operator_Version(void)
 {
-  if (g_project == NULL) {
     init_project_version();
-  }
+
     if(!is_new_cdt())
         return g_project?g_project->nDataSCDT.Operator:-EINVAL;
     else
@@ -264,9 +259,8 @@ EXPORT_SYMBOL(rpmb_is_enable);
 
 unsigned int get_eng_version(void)
 {
-  if (g_project == NULL) {
     init_project_version();
-  }
+
     return g_project?g_project->nDataECDT.Version:-EINVAL;
 }
 EXPORT_SYMBOL(get_eng_version);
@@ -281,9 +275,8 @@ EXPORT_SYMBOL(oppo_daily_build);
 
 bool is_confidential(void)
 {
-  if (g_project == NULL) {
     init_project_version();
-  }
+
     return g_project?g_project->nDataECDT.Is_confidential:-EINVAL;
 }
 EXPORT_SYMBOL(is_confidential);
@@ -291,9 +284,8 @@ EXPORT_SYMBOL(is_confidential);
 uint32_t get_oppo_feature(enum F_INDEX index)
 {
     if(is_new_cdt()){
-      if (g_project == NULL) {
-        init_project_version();
-      }
+      init_project_version();
+        
         if (index < 1 || index > FEATURE_COUNT)
             return 0;
         return g_project?g_project->nDataBCDT.Feature[index-1]:0;
@@ -322,9 +314,8 @@ EXPORT_SYMBOL(get_serialID);
 
 static void dump_ocp_info(struct seq_file *s)
 {
-  if (g_project == NULL) {
     init_project_version();
-  }
+
     if (!g_project)
         return;
 
@@ -349,9 +340,8 @@ static void dump_project_test(struct seq_file *s)
 
 static void dump_oppo_feature(struct seq_file *s)
 {
-  if (g_project == NULL) {
     init_project_version();
-  }
+
     if (!g_project)
         return;
 
@@ -537,9 +527,8 @@ static int project_read_func(struct seq_file *s, void *v)
 
 unsigned int get_cdt_version(void)
 {
-  if (g_project == NULL) {
     init_project_version();
-  }
+
     return g_project?g_project->Version:0;
 }
 
