@@ -164,7 +164,7 @@ unsigned int get_project(void)
 {
     init_project_version();
 
-    return g_project->nDataBCDT.ProjectNo;
+    return g_project? g_project->nDataBCDT.ProjectNo : 0;
 }
 EXPORT_SYMBOL(get_project);
 
