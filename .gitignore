@@ -129,6 +129,7 @@ AnyKernel3/
 out/
 build.sh
 regen.sh
+build.log
 
 #KernelSU
 KernelSU
