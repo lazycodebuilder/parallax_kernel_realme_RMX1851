@@ -97,10 +97,7 @@ __attribute__((weak)) int preconfig_power_control(struct touchpanel_data *ts)
 {
     return 0;
 }
-__attribute__((weak)) int reconfig_power_control(struct touchpanel_data *ts)
-{
-    return 0;
-}
+
 __attribute__((weak)) int notify_prevention_handle(struct kernel_grip_info *grip_info, int obj_attention, struct point_info *points)
 {
     return obj_attention;
@@ -5847,6 +5844,10 @@ static int init_parse_dts(struct device *dev, struct touchpanel_data *ts)
             if (rc) {
                 TPD_INFO("platform_support_project_external_name not specified");
             }
+		}
+        if(!tp_judge_ic_match_commandline(&ts->panel_data )){
+            TPD_INFO("commandline not match, please update dts");
+            goto commandline_kazalloc_error;
         }
     }
     else {
@@ -6610,11 +6611,6 @@ int register_common_touch_device(struct touchpanel_data *pdata)
     ret = init_power_control(ts);
     if (ret) {
         TPD_INFO("%s: tp power init failed.\n", __func__);
-        return -1;
-    }
-    ret = reconfig_power_control(ts);
-    if (ret) {
-        TPD_INFO("%s: reconfig power failed.\n", __func__);
         return -1;
     }
     if (!ts->ts_ops->power_control) {

@@ -242,7 +242,7 @@ unsigned int get_project(void)
 }
 EXPORT_SYMBOL(get_project);
 
-unsigned int is_project(int project)
+unsigned int is_project(enum OPPO_PROJECT_OLDCDT project)
 {
     init_project_version();
 

@@ -12,9 +12,20 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/syscalls.h>
-#include <linux/string.h>
+
 #include <soc/oplus/system/oplus_project.h>
+
+#ifdef CONFIG_MTK_SECURITY_SW_SUPPORT
+#include <sec_boot_lib.h>
+#endif
+
+#ifdef CONFIG_QCOM_SMEM
+#include <linux/soc/qcom/smem.h>
+#elif CONFIG_MSM_SMEM
 #include <soc/qcom/smem.h>
+#endif
+
+#define SMEM_PROJECT    135
 
 #define UINT2Ptr(n)        (uint32_t *)(n)
 #define Ptr2UINT32(p)    (uintptr_t)(p)
@@ -79,12 +90,18 @@ static struct pcb_match pcb_str[] = {
     {.version=MP6, .str="MP6"},
 };
 
+
 struct proc_dir_entry *oppo_info = NULL;
 struct proc_dir_entry *oppo_info_temp = NULL;
 
 static void init_project_version(void)
 {
-	unsigned int smem_size = (sizeof(ProjectInfoOCDT) + 3)&(~0x3);
+    /*for qcom's smem*/
+#ifdef CONFIG_QCOM_SMEM
+    size_t smem_size;
+#elif CONFIG_MSM_SMEM
+	unsigned int  smem_size;
+#endif
     void *smem_addr;
     char *PCB_version_name = NULL;
     uint16_t index = 0;
@@ -94,8 +111,16 @@ static void init_project_version(void)
 	}
     /*get project info from smem*/
     else {
-		smem_addr = smem_alloc(SMEM_PROJECT, smem_size, 0, SMEM_ANY_HOST_FLAG);
-
+#ifdef CONFIG_QCOM_SMEM
+		smem_addr = qcom_smem_get(QCOM_SMEM_HOST_ANY,
+			SMEM_PROJECT,
+			&smem_size);
+#elif CONFIG_MSM_SMEM
+		smem_addr = smem_get_entry(SMEM_PROJECT,
+			&smem_size,
+			0,
+			SMEM_ANY_HOST_FLAG);
+#endif
 		if (IS_ERR(smem_addr)) {
 			pr_err("unable to acquire smem SMEM_PROJECT entry\n");
 			return;
@@ -106,7 +131,7 @@ static void init_project_version(void)
             g_project = NULL;
             return;
         }
-        
+
         do {
             if(pcb_str[index].version == g_project->nDataSCDT.PCB){
                 PCB_version_name = pcb_str[index].str;
@@ -184,16 +209,17 @@ unsigned int get_project(void)
 }
 EXPORT_SYMBOL(get_project);
 
-unsigned int is_project(OPPO_PROJECT project)
+unsigned int is_project(enum OPPO_PROJECT_OLDCDT project)
 {
-    return (get_project() == project?1:0);
+    init_project_version();
+
+    return ((get_project() == project)?1:0);
 }
 EXPORT_SYMBOL(is_project);
 
 unsigned int is_new_cdt(void)/*Q and R is new*/
 {
-    init_project_version();
-   
+	init_project_version();
     if(get_cdt_version() == OCDT_VERSION_1_0)
         return 1;
     else
@@ -300,8 +326,7 @@ EXPORT_SYMBOL(is_confidential);
 uint32_t get_oppo_feature(enum F_INDEX index)
 {
     if(is_new_cdt()){
-      init_project_version();
-        
+        init_project_version();
         if (index < 1 || index > FEATURE_COUNT)
             return 0;
         return g_project?g_project->nDataBCDT.Feature[index-1]:0;

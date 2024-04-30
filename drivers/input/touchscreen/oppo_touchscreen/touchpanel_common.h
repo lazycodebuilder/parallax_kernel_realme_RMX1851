@@ -1030,6 +1030,7 @@ void clear_view_touchdown_flag(void);
 void tp_touch_btnkey_release(void);
 extern int tp_util_get_vendor(struct hw_resource *hw_res, struct panel_info *panel_data);
 extern bool tp_judge_ic_match(char *tp_ic_name);
+extern bool tp_judge_ic_match_commandline(struct panel_info *panel_data);
 __attribute__((weak)) int request_firmware_select(const struct firmware **firmware_p, const char *name, struct device *device)
 {
     return 1;
